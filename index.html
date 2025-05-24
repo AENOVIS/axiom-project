@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Axiom Interface</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div id="chat-container">
+        </div>
+    <div id="input-area">
+        <label for="image-input" id="image-label">🖼️</label>
+        <input type="file" id="image-input" accept="image/*">
+        <input type="text" id="user-input" placeholder="Parlez à Axiom...">
+        <button id="send-button">Envoyer</button>
+        <div id="image-preview"></div>
+    </div>
+
+<script>
+    const chatContainer = document.getElementById('chat-container');
+    const userInput = document.getElementById('user-input');
+    const sendButton = document.getElementById('send-button');
+    const imageInput = document.getElementById('image-input');
+    const imagePreview = document.getElementById('image-preview');
+
+    let conversationHistory = [];
+    let selectedImageFile = null;
+
+    // --- Gestion de l'envoi du message ---
+    async function sendMessage() {
+        const text = userInput.value.trim();
+        if (text === '' && !selectedImageFile) return;
+
+        displayMessage(text, 'user', selectedImageFile);
+
+        let imageBase64 = null;
+        if (selectedImageFile) {
+            imageBase64 = await toBase64(selectedImageFile);
+        }
+
+        // Vider les champs après avoir préparé le message
+        userInput.value = '';
+        imageInput.value = '';
+        selectedImageFile = null;
+        imagePreview.textContent = '';
+        
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        // !!! ATTENTION : MODIFIEZ L'ADRESSE IP CI-DESSOUS !!!
+        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        // Remplacez 34.9.152.247 par l'ADRESSE IP EXTERNE de votre machine Google Cloud
+        const API_ENDPOINT = 'http://34.9.152.247:8000/api/chat';
+
+        try {
+            const response = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    text: text,
+                    image: imageBase64,
+                    history: conversationHistory
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Erreur HTTP: ${response.status}`);
+            }
+
+            const data = await response.json();
+            conversationHistory = data.history; // Met à jour l'historique avec celui du serveur
+            displayMessage(data.response, 'bot');
+
+        } catch (error) {
+            console.error('Erreur lors de l\'envoi du message:', error);
+            displayMessage(`Désolé, une erreur de connexion est survenue. Vérifiez la console (F12) pour les détails.`, 'bot');
+        }
+    }
+
+    // --- Affichage des messages dans le chat ---
+    function displayMessage(text, sender, imageFile) {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message', `${sender}-message`);
+        
+        const textElement = document.createElement('p');
+        textElement.textContent = text;
+        messageElement.appendChild(textElement);
+        
+        if (imageFile) {
+            const imageElement = document.createElement('img');
+            imageElement.src = URL.createObjectURL(imageFile);
+            messageElement.appendChild(imageElement);
+        }
+
+        chatContainer.appendChild(messageElement);
+        chatContainer.scrollTop = chatContainer.scrollHeight; // Scroll vers le bas
+    }
+
+    // --- Gestion des événements ---
+    sendButton.addEventListener('click', sendMessage);
+    userInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+            sendMessage();
+        }
+    });
+
+    imageInput.addEventListener('change', () => {
+        selectedImageFile = imageInput.files[0];
+        if (selectedImageFile) {
+            imagePreview.textContent = `Image: ${selectedImageFile.name}`;
+        } else {
+            imagePreview.textContent = '';
+        }
+    });
+
+    // --- Utilitaire pour convertir une image en Base64 ---
+    const toBase64 = file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result.split(',')[1]); // On ne garde que la partie base64
+        reader.onerror = error => reject(error);
+    });
+
+</script>
+</body>
+</html>
