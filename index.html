@@ -39,20 +39,18 @@
             imageBase64 = await toBase64(selectedImageFile);
         }
 
-        // Vider les champs après avoir préparé le message
         userInput.value = '';
         imageInput.value = '';
         selectedImageFile = null;
         imagePreview.textContent = '';
         
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // !!! ATTENTION : MODIFIEZ L'ADRESSE IP CI-DESSOUS !!!
-        // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        // Remplacez 34.9.152.247 par l'ADRESSE IP EXTERNE de votre machine Google Cloud
-        const API_ENDPOINT = 'http://34.9.152.247:8000/api/chat';
+        // --- VERSION CORRIGÉE ---
+        // Ce code détecte automatiquement l'adresse du serveur.
+        // Plus besoin de mettre l'adresse IP en dur !
+        const apiUrl = `http://${window.location.hostname}:8000/api/chat`;
 
         try {
-            const response = await fetch(API_ENDPOINT, {
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -65,16 +63,16 @@
             });
 
             if (!response.ok) {
-                throw new Error(`Erreur HTTP: ${response.status}`);
+                throw new Error(`Erreur de connexion au serveur: ${response.statusText}`);
             }
 
             const data = await response.json();
-            conversationHistory = data.history; // Met à jour l'historique avec celui du serveur
+            conversationHistory = data.history;
             displayMessage(data.response, 'bot');
 
         } catch (error) {
             console.error('Erreur lors de l\'envoi du message:', error);
-            displayMessage(`Désolé, une erreur de connexion est survenue. Vérifiez la console (F12) pour les détails.`, 'bot');
+            displayMessage(`Désolé, une erreur de connexion est survenue. Détails: ${error.message}`, 'bot');
         }
     }
 
@@ -83,9 +81,11 @@
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', `${sender}-message`);
         
-        const textElement = document.createElement('p');
-        textElement.textContent = text;
-        messageElement.appendChild(textElement);
+        if (text) {
+            const textElement = document.createElement('p');
+            textElement.textContent = text;
+            messageElement.appendChild(textElement);
+        }
         
         if (imageFile) {
             const imageElement = document.createElement('img');
@@ -94,7 +94,7 @@
         }
 
         chatContainer.appendChild(messageElement);
-        chatContainer.scrollTop = chatContainer.scrollHeight; // Scroll vers le bas
+        chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
     // --- Gestion des événements ---
@@ -118,7 +118,7 @@
     const toBase64 = file => new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result.split(',')[1]); // On ne garde que la partie base64
+        reader.onload = () => resolve(reader.result.split(',')[1]);
         reader.onerror = error => reject(error);
     });
 
